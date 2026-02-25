@@ -2,7 +2,7 @@
   "name": "ardi",
   "version": "1.0.0",
   "private": true,
-  "description": "Mission-driven dog shelter internal management platform",
+  "description": "ARDI - Multi-agent platform for user consumption understanding in news media",
   "workspaces": [
     "apps/*",
     "infra/*"

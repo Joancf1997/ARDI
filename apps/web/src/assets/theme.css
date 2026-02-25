@@ -1,0 +1,298 @@
+:root, html:root {
+  /* Color Palette - ARDI Theme */
+  --pale-blue: #f1ffff;
+  --sky-blue: #e8f9ff;
+  --aquamarine: #7fffd4;
+  --aqua-blue: #00ffff;
+  --cyan: #00bfff;
+  --azure: #0052FF;
+  --deep-blue: #0000ff;
+  --turquoise: #40e0d0;
+  --deep-turquoise: #00ced1;
+  --teal: #008080;
+  --dark-cyan: #008b8b;
+  --cerulean: #007ba7;
+  --sea-green: #2e8b57;
+  --deep-sea-blue: #005b7d;
+  --steel-blue: #4682b4;
+  --royal-blue: #4169e1;
+  --cobalt-blue: #0047ab;
+  --ocean-blue: #4f42b5;
+  --indigo: #4b0082;
+  --navy-blue: #000080;
+  --midnight-blue: #ffffff;
+
+  /* Theme Mappings - Light Mode */
+  --primary-color: var(--azure);
+  --primary-hover: var(--cerulean);
+  --primary-active: var(--deep-sea-blue);
+  
+  --secondary-color: var(--deep-turquoise);
+  --secondary-hover: var(--teal);
+  
+  --text-color: var(--midnight-blue);
+  --text-secondary: var(--deep-sea-blue);
+  
+  --bg-light: var(--pale-blue);
+  --bg-lighter: #f8fdfd;
+  --bg-white: #ffffff;
+  
+  --border-color: var(--sky-blue);
+  --border-light: var(--aquamarine);
+
+  --error-bg: #fee;
+  --error-text: #c33;
+
+  /* Status Badges - Light Mode */
+  --status-available-bg: #d4edda;
+  --status-available-text: #155724;
+  --status-on-hold-bg: #fff3cd;
+  --status-on-hold-text: #856404;
+  --status-adopted-bg: #d1ecf1;
+  --status-adopted-text: #0c5460;
+  --status-fostered-bg: #e2e3e5;
+  --status-fostered-text: #383d41;
+  --status-medical-bg: #f8d7da;
+  --status-medical-text: #721c24;
+  --status-unknown-bg: #e9ecef;
+  --status-unknown-text: #495057;
+
+  /* PrimeVue 4 Variable Overrides - Light Mode */
+  --p-primary-color: var(--azure);
+  --p-primary-500: var(--azure);
+  --p-primary-hover-color: var(--cerulean);
+  --p-primary-active-color: var(--deep-sea-blue);
+  --p-primary-contrast-color: #ffffff;
+
+  --p-content-color: var(--text-color);
+  --p-text-color: var(--text-color);
+  --p-surface-0: #ffffff;
+  --p-surface-50: #f8fdfd;
+  --p-surface-100: var(--pale-blue);
+
+  /* Custom component variables */
+  --topbar-bg: var(--primary-color);
+  --topbar-hover-bg: var(--primary-hover);
+  --topbar-text: #ffffff;
+}
+
+/* Base Styles */
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-lighter);
+  color: var(--text-color);
+}
+
+/*
+  Light Mode Fixes
+  We still need these to force PrimeVue components to use OUR variables
+  instead of their internal defaults if they aren't fully mapped.
+*/
+body .p-button {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+}
+
+body .p-button:not(:disabled):hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+body .p-button-secondary {
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+body .p-menubar {
+  background: var(--topbar-bg);
+  border: none;
+  border-radius: 0;
+}
+body .p-menubar .p-menuitem-link { color: var(--topbar-text); }
+body .p-menubar .p-menuitem-link:hover { background: var(--topbar-hover-bg); }
+body .p-menubar .p-menuitem-icon,
+body .p-menubar .p-menuitem-text { color: var(--topbar-text); }
+
+
+/* Dark Mode - Variable Overrides on HTML and BODY */
+html.my-app-dark,
+html.my-app-dark body {
+  color-scheme: dark;
+
+  /* Backgrounds */
+  --bg-light: #121212 !important;
+  --bg-lighter: #000000 !important;
+  --bg-white: #1e1e1e !important;
+
+  /* Text */
+  --text-color: #ffffff !important;
+  --text-secondary: #b0b0b0 !important;
+
+  /* Borders */
+  --border-color: #333333 !important;
+  --border-light: #444444 !important;
+
+  /* Theme Colors */
+  --primary-color: #ffffff !important;
+  --primary-hover: #e0e0e0 !important;
+  --primary-active: #cccccc !important;
+
+  --secondary-color: #333333 !important;
+  --secondary-hover: #444444 !important;
+
+  --accent-color: #888888 !important;
+  --success-color: #cccccc !important;
+
+  /* Custom component variables */
+  --topbar-bg: #000000 !important;
+  --topbar-hover-bg: #1a1a1a !important;
+  --topbar-text: #ffffff !important;
+
+  --error-bg: #b71c1c !important;
+  --error-text: #ffcdd2 !important;
+
+  /* Status Badges - Dark Mode */
+  --status-available-bg: #004d40 !important;
+  --status-available-text: #a5d6a7 !important;
+  --status-on-hold-bg: #827717 !important;
+  --status-on-hold-text: #fff59d !important;
+  --status-adopted-bg: #006064 !important;
+  --status-adopted-text: #80deea !important;
+  --status-fostered-bg: #424242 !important;
+  --status-fostered-text: #e0e0e0 !important;
+  --status-medical-bg: #b71c1c !important;
+  --status-medical-text: #ef9a9a !important;
+  --status-unknown-bg: #37474f !important;
+  --status-unknown-text: #b0bec5 !important;
+
+  /* PrimeVue Variable Overrides */
+  --p-primary-color: #ffffff !important;
+  --p-primary-500: #ffffff !important;
+  --p-primary-hover-color: #e0e0e0 !important;
+  --p-primary-active-color: #cccccc !important;
+  --p-primary-contrast-color: #000000 !important;
+
+  --p-surface-0: #1e1e1e !important;
+  --p-surface-50: #000000 !important;
+  --p-surface-100: #1e1e1e !important;
+  --p-surface-200: #333333 !important;
+  --p-surface-300: #444444 !important;
+  --p-surface-400: #666666 !important;
+  --p-surface-500: #888888 !important;
+  --p-surface-600: #aaaaaa !important;
+  --p-surface-700: #cccccc !important;
+  --p-surface-800: #e0e0e0 !important;
+  --p-surface-900: #ffffff !important;
+  --p-surface-950: #ffffff !important;
+
+  --p-content-background: #1e1e1e !important;
+  --p-content-color: #ffffff !important;
+  --p-text-color: #ffffff !important;
+
+  /* Explicit Button Overrides */
+  --p-button-primary-background: #ffffff !important;
+  --p-button-primary-border-color: #ffffff !important;
+  --p-button-primary-color: #000000 !important;
+
+  --p-button-secondary-background: #333333 !important;
+  --p-button-secondary-border-color: #333333 !important;
+  --p-button-secondary-color: #ffffff !important;
+
+  /* DataTable Overrides */
+  --p-datatable-row-striped-background: #262626 !important;
+  --p-datatable-header-background: #1e1e1e !important;
+  --p-datatable-header-color: #ffffff !important;
+  --p-datatable-row-background: #1e1e1e !important;
+  --p-datatable-row-color: #ffffff !important;
+
+  /* Input Overrides */
+  --p-inputtext-background: #1e1e1e !important;
+  --p-inputtext-color: #ffffff !important;
+  --p-inputtext-border-color: #333333 !important;
+  --p-dropdown-background: #1e1e1e !important;
+  --p-dropdown-color: #ffffff !important;
+  --p-dropdown-border-color: #333333 !important;
+  --p-select-background: #1e1e1e !important;
+  --p-select-color: #ffffff !important;
+  --p-select-border-color: #333333 !important;
+}
+
+/* Structural overrides for things that don't use variables properly */
+html.my-app-dark .p-datatable .p-datatable-thead > tr > th {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+html.my-app-dark .p-datatable .p-datatable-tbody > tr {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+html.my-app-dark .p-datatable .p-datatable-tbody > tr.p-highlight {
+  background: #262626 !important;
+  color: #ffffff !important;
+}
+
+html.my-app-dark .p-datatable .p-datatable-tbody > tr:nth-child(even) {
+  background: #262626 !important; /* Striped row manual override */
+}
+
+html.my-app-dark .p-dropdown,
+html.my-app-dark .p-multiselect,
+html.my-app-dark .p-calendar,
+html.my-app-dark .p-inputtext,
+html.my-app-dark .p-textarea {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+html.my-app-dark .p-dropdown-panel,
+html.my-app-dark .p-multiselect-panel,
+html.my-app-dark .p-datepicker {
+  background: #1e1e1e !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+html.my-app-dark .p-dropdown-item,
+html.my-app-dark .p-multiselect-item {
+  color: #ffffff !important;
+}
+
+html.my-app-dark .p-dropdown-item:hover,
+html.my-app-dark .p-multiselect-item:hover {
+  background: #333333 !important;
+}
+
+html.my-app-dark body {
+  background-color: var(--bg-lighter) !important;
+  color: var(--text-color) !important;
+}
+
+/* Fix for buttons in Dark Mode to ensure they pick up the variable if body .p-button is interfering */
+html.my-app-dark body .p-button {
+  background: var(--p-button-primary-background) !important;
+  border-color: var(--p-button-primary-border-color) !important;
+  color: var(--p-button-primary-color) !important;
+}
+
+html.my-app-dark body .p-button-secondary {
+  background: var(--p-button-secondary-background) !important;
+  border-color: var(--p-button-secondary-border-color) !important;
+  color: var(--p-button-secondary-color) !important;
+}
+
+html.my-app-dark .p-menubar {
+  background: #000000 !important;
+  border-bottom: 1px solid #333333 !important;
+}
+
+html.my-app-dark .p-menubar .p-menuitem-link:hover {
+  background: #1a1a1a !important;
+}
