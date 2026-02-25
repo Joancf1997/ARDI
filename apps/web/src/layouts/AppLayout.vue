@@ -118,10 +118,11 @@ const handleLogout = async () => {
 
 .main-content {
   flex: 1;
-  padding: 2rem;
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto;
+  width: 100%; 
+  max-width: 100%; 
+  margin: 0 auto; 
+  padding: 2rem; 
+  box-sizing: border-box;
 }
 
 :deep(.p-menubar) {

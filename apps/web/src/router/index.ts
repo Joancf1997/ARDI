@@ -3,17 +3,19 @@ import { useAuthStore } from '@/stores/auth.store';
 import LoginPage from '@/pages/LoginPage.vue';
 import DashboardPage from '@/pages/DashboardPage.vue';
 import UsersListPage from '@/pages/Users/UsersListPage.vue';
+import ChatsPage from '@/pages/Chats/ChatsPage.vue';
 
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/login', name: 'login', component: LoginPage, meta: { requiresAuth: false },},
+    { path: '/login', name: 'login', component: LoginPage, meta: { requiresAuth: false }, },
     { path: '/', redirect: '/dashboard', },
     { path: '/dashboard', name: 'dashboard', component: DashboardPage, meta: { requiresAuth: true }, },
     // Users routes 
     { path: '/users', name: 'users', component: UsersListPage, meta: { requiresAuth: true }, },
-
+    // Chats
+    { path: '/chats', name: 'chats', component: ChatsPage, meta: { requiresAuth: true }, },
   ],
 });
 

@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="dashboard">
+    <div >
 
       <!-- Header -->
       <div class="page-header">
@@ -360,10 +360,6 @@ onMounted(() => userStore.fetchUsers());
 </script>
 
 <style scoped>
-.dashboard {
-  max-width: 1200px;
-}
-
 /* Header */
 .page-header {
   display: flex;
