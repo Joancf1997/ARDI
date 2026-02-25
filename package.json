@@ -1,0 +1,36 @@
+{
+  "name": "ardi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mission-driven dog shelter internal management platform",
+  "workspaces": [
+    "apps/*",
+    "infra/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "test": "npm run test --workspaces",
+    "migrate": "npm run migrate --workspace=infra/db",
+    "seed": "npm run seed --workspace=infra/db",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "lint": "eslint . --ext .ts,.tsx,.vue",
+    "format": "prettier --write \"**/*.{ts,tsx,vue,json,md}\""
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "@typescript-eslint/parser": "^8.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  }
+}

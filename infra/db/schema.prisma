@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://josecastanedaforno@localhost:5432/ardi?schema=public"
+}
+
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum Role {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum MessageType {
+  CHAT
+  TOOL_CALL
+  TOOL_RESULT
+  SYSTEM_EVENT
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ToolCallStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  ERROR
+}
+
+enum AgentType {
+  CHAT_AGENT
+  DATA_AGENT
+}
+
+enum ContentFormat {
+  TEXT
+  JSON
+  MARKDOWN
+  STREAM
+}
+
+//////////////////////////////////////////////////////
+// USERS
+//////////////////////////////////////////////////////
+
+model Users {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  role          UserRole @default(USER)
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  conversations Conversation[]
+}
+
+//////////////////////////////////////////////////////
+// CONVERSATION
+//////////////////////////////////////////////////////
+
+model Conversation {
+  id          String   @id @default(uuid())
+  title       String?
+
+  userId      String
+  user        Users @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    Message[]
+  agentRuns   AgentRun[]
+
+  metadata    Json?
+
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////////
+// MESSAGE
+//////////////////////////////////////////////////////
+
+model Message {
+  id              String        @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  role            Role
+  type            MessageType
+  content         String
+  format          ContentFormat @default(TEXT)
+  createdAt       DateTime @default(now())
+  agentRunId      String?
+  agentRun        AgentRun? @relation(fields: [agentRunId], references: [id])
+  metadata        Json?
+  chunks          MessageChunk[]
+  @@index([conversationId])
+}
+
+//////////////////////////////////////////////////////
+// AGENT
+//////////////////////////////////////////////////////
+
+model Agent {
+  id        String     @id @default(uuid())
+  name      String
+  type      AgentType
+  version   String
+  createdAt DateTime @default(now())
+  runs      AgentRun[]
+}
+
+//////////////////////////////////////////////////////
+// AGENT RUN
+//////////////////////////////////////////////////////
+
+model AgentRun {
+  id             String     @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  agentId        String
+  agent          Agent @relation(fields: [agentId], references: [id])
+  status         RunStatus @default(QUEUED)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  inputTokens    Int?
+  outputTokens   Int?
+  totalTokens    Int?
+  error          String?
+  createdAt      DateTime @default(now())
+  steps          RunStep[]
+  toolCalls      ToolCall[]
+  messages       Message[]
+  metadata       Json?
+  @@index([conversationId])
+}
+
+//////////////////////////////////////////////////////
+// RUN STEP (TRACE)
+//////////////////////////////////////////////////////
+
+model RunStep {
+  id          String   @id @default(uuid())
+  runId       String
+  run         AgentRun @relation(fields: [runId], references: [id])
+  stepIndex   Int
+  action      String
+  reasoning   String?
+  createdAt   DateTime @default(now())
+  metadata    Json?
+  @@index([runId])
+}
+
+//////////////////////////////////////////////////////
+// TOOL REGISTRY
+//////////////////////////////////////////////////////
+
+model Tool {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  endpoint    String
+  method      String
+  schema      Json
+  createdAt   DateTime @default(now())
+  toolCalls   ToolCall[]
+}
+
+//////////////////////////////////////////////////////
+// TOOL CALL
+//////////////////////////////////////////////////////
+
+model ToolCall {
+  id          String   @id @default(uuid())
+  runId       String
+  run         AgentRun @relation(fields: [runId], references: [id])
+  toolId      String
+  tool        Tool @relation(fields: [toolId], references: [id])
+  status      ToolCallStatus @default(PENDING)
+  arguments   Json
+  result      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  @@index([runId])
+}
+
+//////////////////////////////////////////////////////
+// STREAMING SUPPORT
+//////////////////////////////////////////////////////
+
+model MessageChunk {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id])
+  content   String
+  sequence  Int
+  createdAt DateTime @default(now())
+  @@index([messageId])
+}
