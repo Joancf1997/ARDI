@@ -12,26 +12,26 @@ datasource db {
 // ENUMS
 //////////////////////////////////////////////////////
 
-enum user_role {
+enum UserRole {
   ADMIN
   USER
 }
 
-enum message_role {
+enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
   TOOL
 }
 
-enum message_type {
+enum MessageType {
   CHAT
   TOOL_CALL
   TOOL_RESULT
   SYSTEM_EVENT
 }
 
-enum run_status {
+enum RunStatus {
   QUEUED
   RUNNING
   COMPLETED
@@ -39,21 +39,21 @@ enum run_status {
   CANCELLED
 }
 
-enum tool_call_status {
+enum ToolCallStatus {
   PENDING
   RUNNING
   SUCCESS
   ERROR
 }
 
-enum agent_type {
+enum AgentType {
   PLANER_AGENT
   RESPONSE_AGENT
   DIRECT_RESPONSE_AGENT
   NARRATIVE_AGENT
 }
 
-enum content_format {
+enum ContentFormat {
   TEXT
   JSON
   MARKDOWN
@@ -64,19 +64,19 @@ enum content_format {
 // USERS
 //////////////////////////////////////////////////////
 
-model user {
+model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  password_hash String
-  full_name     String
-  role          user_role @default(USER)
-  is_active     Boolean   @default(true)
+  passwordHash  String    @map("password_hash")
+  fullName      String    @map("full_name")
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)  @map("is_active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  refreshTokens RefreshToken[]
+  conversations Conversation[]
 
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  refresh_tokens refresh_token[]
-  conversations conversation[]
-
+  @@index([email])
   @@map("users")
 }
 
@@ -84,17 +84,17 @@ model user {
 // Tokens
 //////////////////////////////////////////////////////
 
-model refresh_token {
+model RefreshToken {
   id           String    @id @default(uuid())
-  user_id      String
-  token_hash   String
-  expires_at   DateTime
-  revoked_at   DateTime?
-  created_at   DateTime  @default(now())
-  user         user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  userId       String    @map("user_id")
+  tokenHash    String    @map("token_hash")
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([user_id])
-  @@index([token_hash])
+  @@index([userId])
+  @@index([tokenHash])
   @@map("refresh_tokens")
 }
 
@@ -102,22 +102,18 @@ model refresh_token {
 // CONVERSATION
 //////////////////////////////////////////////////////
 
-model conversation {
-  id         String   @id @default(uuid())
+model Conversation {
+  id         String    @id @default(uuid())
   title      String?
-
-  user_id    String
-  user       user     @relation(fields: [user_id], references: [id])
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  messages   message[]
-  agent_runs agent_run[]
-
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id])
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  messages   Message[]
+  agentRuns  AgentRun[]
   metadata   Json?
 
-  @@index([user_id])
+  @@index([userId])
   @@map("conversations")
 }
 
@@ -125,33 +121,25 @@ model conversation {
 // MESSAGE
 //////////////////////////////////////////////////////
 
-model message {
+model Message {
   id              String         @id @default(uuid())
-
-  conversation_id String
-  conversation    conversation   @relation(fields: [conversation_id], references: [id])
-
+  conversationId  String         @map("conversation_id")
+  conversation    Conversation   @relation(fields: [conversationId], references: [id])
   sequence        Int
-
-  role            message_role
-  type            message_type
+  role            MessageRole
+  type            MessageType
   content         String
-  format          content_format @default(TEXT)
-
-  agent_run_id    String?
-  agent_run       agent_run?     @relation(fields: [agent_run_id], references: [id])
-
-  // ✅ MANY messages may come from one tool call
-  tool_call_id    String?
-  tool_call       tool_call?     @relation(fields: [tool_call_id], references: [id])
-
-  created_at      DateTime       @default(now())
+  format          ContentFormat @default(TEXT)
+  agentRunId      String?        @map("agent_run_id")
+  agentRun        AgentRun?      @relation(fields: [agentRunId], references: [id])
+  toolCallId      String?        @map("tool_call_id")
+  toolCall        ToolCall?      @relation(fields: [toolCallId], references: [id])
+  createdAt       DateTime       @default(now()) @map("created_at")
   metadata        Json?
+  chunks          MessageChunk[]
 
-  chunks          message_chunk[]
-
-  @@index([conversation_id])
-  @@unique([conversation_id, sequence])
+  @@index([conversationId])
+  @@unique([conversationId, sequence])
   @@map("messages")
 }
 
@@ -159,14 +147,13 @@ model message {
 // AGENT
 //////////////////////////////////////////////////////
 
-model agent {
+model Agent {
   id         String     @id @default(uuid())
   name       String
-  type       agent_type
+  type       AgentType
   version    String
-  created_at DateTime   @default(now())
-
-  runs       agent_run[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+  runs       AgentRun[]
 
   @@map("agents")
 }
@@ -175,39 +162,23 @@ model agent {
 // AGENT RUN
 //////////////////////////////////////////////////////
 
-model agent_run {
+model AgentRun {
   id              String     @id @default(uuid())
-
-  conversation_id String
-  conversation    conversation @relation(fields: [conversation_id], references: [id])
-
-  agent_id        String
-  agent           agent      @relation(fields: [agent_id], references: [id])
-
-  status          run_status @default(QUEUED)
-
-  started_at      DateTime?
-  completed_at    DateTime?
-
-  model_name      String?
-  provider        String?
-
-  input_tokens    Int?
-  output_tokens   Int?
-  total_tokens    Int?
-  cost_usd        Float?
-
+  conversationId  String @map("conversation_id")
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  agentId         String @map("agent_id")
+  agent           Agent      @relation(fields: [agentId], references: [id])
+  status          RunStatus @default(QUEUED)
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
   error           String?
-
-  created_at      DateTime   @default(now())
-
-  steps           run_step[]
-  tool_calls      tool_call[]
-  messages        message[]
-
+  createdAt       DateTime   @default(now()) @map("created_at")
+  steps           RunStep[]
+  toolCalls       ToolCall[] 
+  messages        Message[]
   metadata        Json?
 
-  @@index([conversation_id])
+  @@index([conversationId])
   @@map("agent_runs")
 }
 
@@ -215,21 +186,18 @@ model agent_run {
 // RUN STEP
 //////////////////////////////////////////////////////
 
-model run_step {
+model RunStep {
   id         String    @id @default(uuid())
-
-  run_id     String
-  run        agent_run @relation(fields: [run_id], references: [id])
-
-  step_index Int
+  runId      String @map("run_id")
+  run        AgentRun @relation(fields: [runId], references: [id])
+  stepIndex  Int @map("step_index")
   action     String
   reasoning  String?
-
-  created_at DateTime  @default(now())
+  createdAt DateTime  @default(now()) @map("created_at")
   metadata   Json?
 
-  @@index([run_id])
-  @@unique([run_id, step_index])
+  @@index([runId])
+  @@unique([runId, stepIndex])
   @@map("run_steps")
 }
 
@@ -237,16 +205,15 @@ model run_step {
 // TOOL REGISTRY
 //////////////////////////////////////////////////////
 
-model tool {
+model Tool {
   id          String      @id @default(uuid())
   name        String      @unique
   description String
   endpoint    String
   method      String
   schema      Json
-  created_at  DateTime    @default(now())
-
-  tool_calls  tool_call[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+  toolCalls  ToolCall[]
 
   @@map("tools")
 }
@@ -255,28 +222,22 @@ model tool {
 // TOOL CALL
 //////////////////////////////////////////////////////
 
-model tool_call {
+model ToolCall {
   id           String           @id @default(uuid())
-
-  run_id       String
-  run          agent_run        @relation(fields: [run_id], references: [id])
-
-  tool_id      String
-  tool         tool             @relation(fields: [tool_id], references: [id])
-
-  status       tool_call_status @default(PENDING)
-
+  runId        String @map("run_id")
+  run          AgentRun         @relation(fields: [runId], references: [id])
+  toolId       String @map("tool_id")
+  tool         Tool             @relation(fields: [toolId], references: [id])
+  status       ToolCallStatus @default(PENDING)
   arguments    Json
   result       Json?
   error        String?
+  messages     Message[]
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  messages     message[]
-
-  started_at   DateTime?
-  completed_at DateTime?
-  created_at   DateTime @default(now())
-
-  @@index([run_id])
+  @@index([runId])
   @@map("tool_calls")
 }
 
@@ -284,18 +245,15 @@ model tool_call {
 // STREAMING SUPPORT
 //////////////////////////////////////////////////////
 
-model message_chunk {
+model MessageChunk {
   id         String   @id @default(uuid())
-
-  message_id String
-  message    message  @relation(fields: [message_id], references: [id])
-
+  messageId  String   @map("message_id")
+  message    Message  @relation(fields: [messageId], references: [id])
   content    String
   sequence   Int
+  createdAt DateTime @default(now()) @map("created_at")
 
-  created_at DateTime @default(now())
-
-  @@index([message_id])
-  @@unique([message_id, sequence])
+  @@index([messageId])
+  @@unique([messageId, sequence])
   @@map("message_chunks")
 }

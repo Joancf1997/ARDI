@@ -11,7 +11,7 @@ export class AuthController {
       const tokens = await this.authService.login(email, password);
 
       // Set refresh token as HTTP-only cookie
-      res.cookie('refresh_token', tokens.refresh_token, {
+      res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -32,19 +32,19 @@ export class AuthController {
   refresh = async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Get refresh token from cookie or body
-      const refresh_token = req.cookies.refresh_token || req.body.refresh_token;
+      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-      if (!refresh_token) {
+      if (!refreshToken) {
         return res.status(401).json({
           success: false,
           error: { message: 'No refresh token provided' },
         });
       }
 
-      const tokens = await this.authService.refresh(refresh_token);
+      const tokens = await this.authService.refresh(refreshToken);
 
       // Set new refresh token as HTTP-only cookie
-      res.cookie('refresh_token', tokens.refresh_token, {
+      res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -64,13 +64,13 @@ export class AuthController {
 
   logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const refresh_token = req.cookies.refresh_token || req.body.refresh_token;
+      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-      if (refresh_token) {
-        await this.authService.logout(refresh_token);
+      if (refreshToken) {
+        await this.authService.logout(refreshToken);
       }
 
-      res.clearCookie('refresh_token');
+      res.clearCookie('refreshToken');
 
       res.json({
         success: true,
@@ -90,7 +90,7 @@ export class AuthController {
         });
       }
 
-      const user = await this.authService.getCurrentUser(req.user.user_id);
+      const user = await this.authService.getCurrentUser(req.user.userId);
 
       res.json({
         success: true,

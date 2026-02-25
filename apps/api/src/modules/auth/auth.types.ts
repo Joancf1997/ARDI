@@ -1,15 +1,15 @@
-import { user_role } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 export interface AuthTokens {
   accessToken: string;
-  refresh_token: string;
+  refreshToken: string;
 }
 
 export interface UserResponse {
   id: string;
   email: string;
   fullName: string;
-  role: user_role;
-  is_active: boolean;
+  role: UserRole;
+  isActive: boolean;
   createdAt: Date;
 }

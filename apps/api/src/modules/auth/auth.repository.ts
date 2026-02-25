@@ -1,36 +1,36 @@
 import { prisma } from '@/shared/prisma';
-import { user, refresh_token } from '@prisma/client';
+import { User, RefreshToken } from '@prisma/client';
 import { createHash } from 'crypto';
 
 export class AuthRepository {
-  async findUserByEmail(email: string): Promise<user | null> {
+  async findUserByEmail(email: string): Promise<User | null> {
     return prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
   }
 
-  async findUserById(id: string): Promise<user | null> {
+  async findUserById(id: string): Promise<User | null> {
     return prisma.user.findUnique({
       where: { id },
     });
   }
 
   async createrefresh_token(data: {
-    user_id: string;
-    token_hash: string;
-    expires_at: Date;
-  }): Promise<refresh_token> {
-    return prisma.refresh_token.create({
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<RefreshToken> {
+    return prisma.refreshToken.create({
       data,
     });
   }
 
-  async findrefresh_token(token_hash: string): Promise<refresh_token | null> {
-    return prisma.refresh_token.findFirst({
+  async findrefresh_token(tokenHash: string): Promise<RefreshToken | null> {
+    return prisma.refreshToken.findFirst({
       where: {
-        token_hash,
-        revoked_at: null,
-        expires_at: {
+        tokenHash,
+        revokedAt: null,
+        expiresAt: {
           gt: new Date(),
         },
       },
@@ -38,26 +38,26 @@ export class AuthRepository {
   }
 
   async revokerefresh_token(id: string): Promise<void> {
-    await prisma.refresh_token.update({
+    await prisma.refreshToken.update({
       where: { id },
-      data: { revoked_at: new Date() },
+      data: { revokedAt: new Date() },
     });
   }
 
-  async revokeAllUserrefresh_tokens(user_id: string): Promise<void> {
-    await prisma.refresh_token.updateMany({
+  async revokeAllUserrefresh_tokens(userId: string): Promise<void> {
+    await prisma.refreshToken.updateMany({
       where: {
-        user_id,
-        revoked_at: null,
+        userId,
+        revokedAt: null,
       },
-      data: { revoked_at: new Date() },
+      data: { revokedAt: new Date() },
     });
   }
 
   async cleanupExpiredTokens(): Promise<void> {
-    await prisma.refresh_token.deleteMany({
+    await prisma.refreshToken.deleteMany({
       where: {
-        expires_at: {
+        expiresAt: {
           lt: new Date(),
         },
       },

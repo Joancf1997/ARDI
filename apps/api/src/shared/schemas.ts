@@ -6,10 +6,10 @@ export const loginSchema = z.object({
   password: z.string().min(8),
 });
 
-export const refresh_tokenSchema = z.object({
-  refresh_token: z.string(),
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string(),
 });
 
 // Types
 export type LoginInput = z.infer<typeof loginSchema>;
-export type refresh_tokenInput = z.infer<typeof refresh_tokenSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;

@@ -18,30 +18,30 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    if (!user.is_active) {
+    if (!user.isActive) {
       throw new UnauthorizedError('Account is inactive');
     }
 
     return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async refresh(refresh_token: string): Promise<AuthTokens> {
-    const token_hash = await this.authRepository.hashToken(refresh_token);
-    const storedToken = await this.authRepository.findrefresh_token(token_hash);
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    const tokenHash = await this.authRepository.hashToken(refreshToken);
+    const storedToken = await this.authRepository.findrefresh_token(tokenHash);
 
     if (!storedToken) {
       throw new UnauthorizedError('Invalid refresh token');
     }
 
-    const user = await this.authRepository.findUserById(storedToken.user_id);
+    const user = await this.authRepository.findUserById(storedToken.userId);
 
-    if (!user || !user.is_active) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedError('Invalid user');
     }
 
@@ -52,17 +52,17 @@ export class AuthService {
     return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async logout(refresh_token: string): Promise<void> {
-    const token_hash = await this.authRepository.hashToken(refresh_token);
-    const storedToken = await this.authRepository.findrefresh_token(token_hash);
+  async logout(refreshToken: string): Promise<void> {
+    const tokenHash = await this.authRepository.hashToken(refreshToken);
+    const storedToken = await this.authRepository.findrefresh_token(tokenHash);
 
     if (storedToken) {
       await this.authRepository.revokerefresh_token(storedToken.id);
     }
   }
 
-  async getCurrentUser(user_id: string): Promise<UserResponse> {
-    const user = await this.authRepository.findUserById(user_id);
+  async getCurrentUser(userId: string): Promise<UserResponse> {
+    const user = await this.authRepository.findUserById(userId);
 
     if (!user) {
       throw new NotFoundError('User not found');
@@ -71,20 +71,20 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      fullName: user.full_name,
+      fullName: user.fullName,
       role: user.role,
-      is_active: user.is_active,
-      createdAt: user.created_at,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
     };
   }
 
   private async generateTokens(
-    user_id: string,
+    userId: string,
     email: string,
     role: string,
   ): Promise<AuthTokens> {
     const payload: JwtPayload = {
-      user_id,
+      userId,
       email,
       role: role as any,
     };
@@ -94,24 +94,24 @@ export class AuthService {
     } as jwt.SignOptions);
 
     // Generate a random refresh token
-    const refresh_token = randomBytes(64).toString('hex');
-    const token_hash = await this.authRepository.hashToken(refresh_token);
+    const refreshToken = randomBytes(64).toString('hex');
+    const tokenHash = await this.authRepository.hashToken(refreshToken);
 
     // Calculate expiration
-    const expires_at = new Date();
+    const expiresAt = new Date();
     const days = parseInt(config.jwt.refreshExpiresIn.replace('d', ''), 10);
-    expires_at.setDate(expires_at.getDate() + days);
+    expiresAt.setDate(expiresAt.getDate() + days);
 
     // Store refresh token
     await this.authRepository.createrefresh_token({
-      user_id,
-      token_hash: token_hash,
-      expires_at,
+      userId,
+      tokenHash: tokenHash,
+      expiresAt: expiresAt,
     });
 
     return {
       accessToken,
-      refresh_token,
+      refreshToken,
     };
   }
 }
