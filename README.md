@@ -1,8 +1,9 @@
 # ARDI
+
 Thesis Project - AI Agent For news user behavior understanding
 
-# Initial config 
+# Initial config
 
 ## Running database migrations and seeds...
-cd /app/infra/db && npx prisma generate && npx prisma migrate dev --name init && npm run seed
 
+cd /app/infra/db && npx prisma generate && npx prisma migrate dev --name init && npm run seed

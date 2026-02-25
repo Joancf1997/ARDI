@@ -2,13 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '@/config';
 import { UnauthorizedError } from '@/shared/errors';
-import { Role } from '@prisma/client';
+import { user_role } from '@prisma/client';
 
 export interface JwtPayload {
-  userId: string;
+  user_id: string;
   email: string;
-  role: Role;
-  shelterId: string | null;
+  role: user_role;
 }
 
 declare global {

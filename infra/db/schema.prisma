@@ -5,33 +5,33 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://josecastanedaforno@localhost:5432/ardi?schema=public"
+  url      = "postgresql://joseandres@localhost:5432/ardi?schema=public"
 }
 
 //////////////////////////////////////////////////////
 // ENUMS
 //////////////////////////////////////////////////////
 
-enum UserRole {
+enum user_role {
   ADMIN
   USER
 }
 
-enum Role {
+enum message_role {
   USER
   ASSISTANT
   SYSTEM
   TOOL
 }
 
-enum MessageType {
+enum message_type {
   CHAT
   TOOL_CALL
   TOOL_RESULT
   SYSTEM_EVENT
 }
 
-enum RunStatus {
+enum run_status {
   QUEUED
   RUNNING
   COMPLETED
@@ -39,19 +39,21 @@ enum RunStatus {
   CANCELLED
 }
 
-enum ToolCallStatus {
+enum tool_call_status {
   PENDING
   RUNNING
   SUCCESS
   ERROR
 }
 
-enum AgentType {
-  CHAT_AGENT
-  DATA_AGENT
+enum agent_type {
+  PLANER_AGENT
+  RESPONSE_AGENT
+  DIRECT_RESPONSE_AGENT
+  NARRATIVE_AGENT
 }
 
-enum ContentFormat {
+enum content_format {
   TEXT
   JSON
   MARKDOWN
@@ -62,161 +64,238 @@ enum ContentFormat {
 // USERS
 //////////////////////////////////////////////////////
 
-model Users {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  fullName      String
-  role          UserRole @default(USER)
-  isActive      Boolean  @default(true)
+model user {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  full_name     String
+  role          user_role @default(USER)
+  is_active     Boolean   @default(true)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  refresh_tokens refresh_token[]
+  conversations conversation[]
 
-  conversations Conversation[]
+  @@map("users")
+}
+
+//////////////////////////////////////////////////////
+// Tokens
+//////////////////////////////////////////////////////
+
+model refresh_token {
+  id           String    @id @default(uuid())
+  user_id      String
+  token_hash   String
+  expires_at   DateTime
+  revoked_at   DateTime?
+  created_at   DateTime  @default(now())
+  user         user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@map("refresh_tokens")
 }
 
 //////////////////////////////////////////////////////
 // CONVERSATION
 //////////////////////////////////////////////////////
 
-model Conversation {
-  id          String   @id @default(uuid())
-  title       String?
+model conversation {
+  id         String   @id @default(uuid())
+  title      String?
 
-  userId      String
-  user        Users @relation(fields: [userId], references: [id])
+  user_id    String
+  user       user     @relation(fields: [user_id], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  messages    Message[]
-  agentRuns   AgentRun[]
+  messages   message[]
+  agent_runs agent_run[]
 
-  metadata    Json?
+  metadata   Json?
 
-  @@index([userId])
+  @@index([user_id])
+  @@map("conversations")
 }
 
 //////////////////////////////////////////////////////
 // MESSAGE
 //////////////////////////////////////////////////////
 
-model Message {
-  id              String        @id @default(uuid())
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id])
-  role            Role
-  type            MessageType
+model message {
+  id              String         @id @default(uuid())
+
+  conversation_id String
+  conversation    conversation   @relation(fields: [conversation_id], references: [id])
+
+  sequence        Int
+
+  role            message_role
+  type            message_type
   content         String
-  format          ContentFormat @default(TEXT)
-  createdAt       DateTime @default(now())
-  agentRunId      String?
-  agentRun        AgentRun? @relation(fields: [agentRunId], references: [id])
+  format          content_format @default(TEXT)
+
+  agent_run_id    String?
+  agent_run       agent_run?     @relation(fields: [agent_run_id], references: [id])
+
+  // ✅ MANY messages may come from one tool call
+  tool_call_id    String?
+  tool_call       tool_call?     @relation(fields: [tool_call_id], references: [id])
+
+  created_at      DateTime       @default(now())
   metadata        Json?
-  chunks          MessageChunk[]
-  @@index([conversationId])
+
+  chunks          message_chunk[]
+
+  @@index([conversation_id])
+  @@unique([conversation_id, sequence])
+  @@map("messages")
 }
 
 //////////////////////////////////////////////////////
 // AGENT
 //////////////////////////////////////////////////////
 
-model Agent {
-  id        String     @id @default(uuid())
-  name      String
-  type      AgentType
-  version   String
-  createdAt DateTime @default(now())
-  runs      AgentRun[]
+model agent {
+  id         String     @id @default(uuid())
+  name       String
+  type       agent_type
+  version    String
+  created_at DateTime   @default(now())
+
+  runs       agent_run[]
+
+  @@map("agents")
 }
 
 //////////////////////////////////////////////////////
 // AGENT RUN
 //////////////////////////////////////////////////////
 
-model AgentRun {
-  id             String     @id @default(uuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  agentId        String
-  agent          Agent @relation(fields: [agentId], references: [id])
-  status         RunStatus @default(QUEUED)
-  startedAt      DateTime?
-  completedAt    DateTime?
-  inputTokens    Int?
-  outputTokens   Int?
-  totalTokens    Int?
-  error          String?
-  createdAt      DateTime @default(now())
-  steps          RunStep[]
-  toolCalls      ToolCall[]
-  messages       Message[]
-  metadata       Json?
-  @@index([conversationId])
+model agent_run {
+  id              String     @id @default(uuid())
+
+  conversation_id String
+  conversation    conversation @relation(fields: [conversation_id], references: [id])
+
+  agent_id        String
+  agent           agent      @relation(fields: [agent_id], references: [id])
+
+  status          run_status @default(QUEUED)
+
+  started_at      DateTime?
+  completed_at    DateTime?
+
+  model_name      String?
+  provider        String?
+
+  input_tokens    Int?
+  output_tokens   Int?
+  total_tokens    Int?
+  cost_usd        Float?
+
+  error           String?
+
+  created_at      DateTime   @default(now())
+
+  steps           run_step[]
+  tool_calls      tool_call[]
+  messages        message[]
+
+  metadata        Json?
+
+  @@index([conversation_id])
+  @@map("agent_runs")
 }
 
 //////////////////////////////////////////////////////
-// RUN STEP (TRACE)
+// RUN STEP
 //////////////////////////////////////////////////////
 
-model RunStep {
-  id          String   @id @default(uuid())
-  runId       String
-  run         AgentRun @relation(fields: [runId], references: [id])
-  stepIndex   Int
-  action      String
-  reasoning   String?
-  createdAt   DateTime @default(now())
-  metadata    Json?
-  @@index([runId])
+model run_step {
+  id         String    @id @default(uuid())
+
+  run_id     String
+  run        agent_run @relation(fields: [run_id], references: [id])
+
+  step_index Int
+  action     String
+  reasoning  String?
+
+  created_at DateTime  @default(now())
+  metadata   Json?
+
+  @@index([run_id])
+  @@unique([run_id, step_index])
+  @@map("run_steps")
 }
 
 //////////////////////////////////////////////////////
 // TOOL REGISTRY
 //////////////////////////////////////////////////////
 
-model Tool {
-  id          String   @id @default(uuid())
-  name        String   @unique
+model tool {
+  id          String      @id @default(uuid())
+  name        String      @unique
   description String
   endpoint    String
   method      String
   schema      Json
-  createdAt   DateTime @default(now())
-  toolCalls   ToolCall[]
+  created_at  DateTime    @default(now())
+
+  tool_calls  tool_call[]
+
+  @@map("tools")
 }
 
 //////////////////////////////////////////////////////
 // TOOL CALL
 //////////////////////////////////////////////////////
 
-model ToolCall {
-  id          String   @id @default(uuid())
-  runId       String
-  run         AgentRun @relation(fields: [runId], references: [id])
-  toolId      String
-  tool        Tool @relation(fields: [toolId], references: [id])
-  status      ToolCallStatus @default(PENDING)
-  arguments   Json
-  result      Json?
-  error       String?
-  startedAt   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
-  @@index([runId])
+model tool_call {
+  id           String           @id @default(uuid())
+
+  run_id       String
+  run          agent_run        @relation(fields: [run_id], references: [id])
+
+  tool_id      String
+  tool         tool             @relation(fields: [tool_id], references: [id])
+
+  status       tool_call_status @default(PENDING)
+
+  arguments    Json
+  result       Json?
+  error        String?
+
+  messages     message[]
+
+  started_at   DateTime?
+  completed_at DateTime?
+  created_at   DateTime @default(now())
+
+  @@index([run_id])
+  @@map("tool_calls")
 }
 
 //////////////////////////////////////////////////////
 // STREAMING SUPPORT
 //////////////////////////////////////////////////////
 
-model MessageChunk {
-  id        String   @id @default(uuid())
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id])
-  content   String
-  sequence  Int
-  createdAt DateTime @default(now())
-  @@index([messageId])
+model message_chunk {
+  id         String   @id @default(uuid())
+
+  message_id String
+  message    message  @relation(fields: [message_id], references: [id])
+
+  content    String
+  sequence   Int
+
+  created_at DateTime @default(now())
+
+  @@index([message_id])
+  @@unique([message_id, sequence])
+  @@map("message_chunks")
 }

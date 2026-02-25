@@ -7,7 +7,6 @@ import { config } from '@/config';
 import { logger } from '@/shared/logger';
 import { errorHandler } from '@/middlewares/error.middleware';
 import authRoutes from '@/modules/auth/auth.routes';
-import dogsRoutes from '@/modules/dogs/dogs.routes';
 import { prisma } from '@/shared/prisma';
 
 const app: Application = express();
@@ -41,7 +40,6 @@ app.get('/health', (_req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/dogs', dogsRoutes);
 
 // 404 handler
 app.use('*', (_req, res) => {

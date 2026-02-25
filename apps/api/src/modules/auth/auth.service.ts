@@ -18,51 +18,51 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    if (!user.isActive) {
+    if (!user.is_active) {
       throw new UnauthorizedError('Account is inactive');
     }
 
-    return this.generateTokens(user.id, user.email, user.role, user.shelterId);
+    return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async refresh(refreshToken: string): Promise<AuthTokens> {
-    const tokenHash = await this.authRepository.hashToken(refreshToken);
-    const storedToken = await this.authRepository.findRefreshToken(tokenHash);
+  async refresh(refresh_token: string): Promise<AuthTokens> {
+    const token_hash = await this.authRepository.hashToken(refresh_token);
+    const storedToken = await this.authRepository.findrefresh_token(token_hash);
 
     if (!storedToken) {
       throw new UnauthorizedError('Invalid refresh token');
     }
 
-    const user = await this.authRepository.findUserById(storedToken.userId);
+    const user = await this.authRepository.findUserById(storedToken.user_id);
 
-    if (!user || !user.isActive) {
+    if (!user || !user.is_active) {
       throw new UnauthorizedError('Invalid user');
     }
 
     // Revoke the old refresh token (rotation)
-    await this.authRepository.revokeRefreshToken(storedToken.id);
+    await this.authRepository.revokerefresh_token(storedToken.id);
 
     // Generate new tokens
-    return this.generateTokens(user.id, user.email, user.role, user.shelterId);
+    return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async logout(refreshToken: string): Promise<void> {
-    const tokenHash = await this.authRepository.hashToken(refreshToken);
-    const storedToken = await this.authRepository.findRefreshToken(tokenHash);
+  async logout(refresh_token: string): Promise<void> {
+    const token_hash = await this.authRepository.hashToken(refresh_token);
+    const storedToken = await this.authRepository.findrefresh_token(token_hash);
 
     if (storedToken) {
-      await this.authRepository.revokeRefreshToken(storedToken.id);
+      await this.authRepository.revokerefresh_token(storedToken.id);
     }
   }
 
-  async getCurrentUser(userId: string): Promise<UserResponse> {
-    const user = await this.authRepository.findUserById(userId);
+  async getCurrentUser(user_id: string): Promise<UserResponse> {
+    const user = await this.authRepository.findUserById(user_id);
 
     if (!user) {
       throw new NotFoundError('User not found');
@@ -71,25 +71,22 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      fullName: user.fullName,
+      fullName: user.full_name,
       role: user.role,
-      shelterId: user.shelterId,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
+      is_active: user.is_active,
+      createdAt: user.created_at,
     };
   }
 
   private async generateTokens(
-    userId: string,
+    user_id: string,
     email: string,
     role: string,
-    shelterId: string | null
   ): Promise<AuthTokens> {
     const payload: JwtPayload = {
-      userId,
+      user_id,
       email,
       role: role as any,
-      shelterId,
     };
 
     const accessToken = jwt.sign(payload, config.jwt.accessSecret, {
@@ -97,24 +94,24 @@ export class AuthService {
     } as jwt.SignOptions);
 
     // Generate a random refresh token
-    const refreshToken = randomBytes(64).toString('hex');
-    const refreshTokenHash = await this.authRepository.hashToken(refreshToken);
+    const refresh_token = randomBytes(64).toString('hex');
+    const token_hash = await this.authRepository.hashToken(refresh_token);
 
     // Calculate expiration
-    const expiresAt = new Date();
+    const expires_at = new Date();
     const days = parseInt(config.jwt.refreshExpiresIn.replace('d', ''), 10);
-    expiresAt.setDate(expiresAt.getDate() + days);
+    expires_at.setDate(expires_at.getDate() + days);
 
     // Store refresh token
-    await this.authRepository.createRefreshToken({
-      userId,
-      tokenHash: refreshTokenHash,
-      expiresAt,
+    await this.authRepository.createrefresh_token({
+      user_id,
+      token_hash: token_hash,
+      expires_at,
     });
 
     return {
       accessToken,
-      refreshToken,
+      refresh_token,
     };
   }
 }
