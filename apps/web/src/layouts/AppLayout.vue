@@ -47,14 +47,14 @@ const user = computed(() => authStore.user);
 
 const menuItems = computed(() => [
   {
-    label: 'Dashboard',
-    icon: 'pi pi-home',
-    command: () => router.push('/dashboard'),
-  },
-  {
     label: 'Chats',
     icon: 'pi pi-comments',
     command: () => router.push('/chats'),
+  },
+  {
+    label: 'Dashboard',
+    icon: 'pi pi-chart-bar',
+    command: () => router.push('/dashboard'),
   },
   {
     label: 'Users',

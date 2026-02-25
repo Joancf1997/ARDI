@@ -1,11 +1,12 @@
-:root, html:root {
-  /* Color Palette - ARDI Theme */
-  --pale-blue: #f1ffff;
-  --sky-blue: #e8f9ff;
+:root,
+html:root {
+  /* Color Palette - SecondLeash Theme */
+  --pale-blue: #afeeee;
+  --sky-blue: #87ceeb;
   --aquamarine: #7fffd4;
   --aqua-blue: #00ffff;
   --cyan: #00bfff;
-  --azure: #0052FF;
+  --azure: #007fff;
   --deep-blue: #0000ff;
   --turquoise: #40e0d0;
   --deep-turquoise: #00ced1;
@@ -20,23 +21,23 @@
   --ocean-blue: #4f42b5;
   --indigo: #4b0082;
   --navy-blue: #000080;
-  --midnight-blue: #ffffff;
+  --midnight-blue: #191970;
 
   /* Theme Mappings - Light Mode */
   --primary-color: var(--azure);
   --primary-hover: var(--cerulean);
   --primary-active: var(--deep-sea-blue);
-  
+
   --secondary-color: var(--deep-turquoise);
   --secondary-hover: var(--teal);
-  
+
   --text-color: var(--midnight-blue);
   --text-secondary: var(--deep-sea-blue);
-  
+
   --bg-light: var(--pale-blue);
   --bg-lighter: #f8fdfd;
   --bg-white: #ffffff;
-  
+
   --border-color: var(--sky-blue);
   --border-light: var(--aquamarine);
 
@@ -112,10 +113,19 @@ body .p-menubar {
   border: none;
   border-radius: 0;
 }
-body .p-menubar .p-menuitem-link { color: var(--topbar-text); }
-body .p-menubar .p-menuitem-link:hover { background: var(--topbar-hover-bg); }
+
+body .p-menubar .p-menuitem-link {
+  color: var(--topbar-text);
+}
+
+body .p-menubar .p-menuitem-link:hover {
+  background: var(--topbar-hover-bg);
+}
+
 body .p-menubar .p-menuitem-icon,
-body .p-menubar .p-menuitem-text { color: var(--topbar-text); }
+body .p-menubar .p-menuitem-text {
+  color: var(--topbar-text);
+}
 
 
 /* Dark Mode - Variable Overrides on HTML and BODY */
@@ -222,24 +232,25 @@ html.my-app-dark body {
 }
 
 /* Structural overrides for things that don't use variables properly */
-html.my-app-dark .p-datatable .p-datatable-thead > tr > th {
+html.my-app-dark .p-datatable .p-datatable-thead>tr>th {
   background: #1e1e1e !important;
   color: #ffffff !important;
   border-color: #333333 !important;
 }
 
-html.my-app-dark .p-datatable .p-datatable-tbody > tr {
+html.my-app-dark .p-datatable .p-datatable-tbody>tr {
   background: #1e1e1e !important;
   color: #ffffff !important;
 }
 
-html.my-app-dark .p-datatable .p-datatable-tbody > tr.p-highlight {
+html.my-app-dark .p-datatable .p-datatable-tbody>tr.p-highlight {
   background: #262626 !important;
   color: #ffffff !important;
 }
 
-html.my-app-dark .p-datatable .p-datatable-tbody > tr:nth-child(even) {
-  background: #262626 !important; /* Striped row manual override */
+html.my-app-dark .p-datatable .p-datatable-tbody>tr:nth-child(even) {
+  background: #262626 !important;
+  /* Striped row manual override */
 }
 
 html.my-app-dark .p-dropdown,

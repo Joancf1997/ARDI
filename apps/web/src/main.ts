@@ -26,6 +26,9 @@ import Select from 'primevue/select';
 import DatePicker from 'primevue/datepicker';
 import Tooltip from 'primevue/tooltip';
 import ToggleSwitch from 'primevue/toggleswitch';
+import ConfirmDialog from 'primevue/confirmdialog';
+import ConfirmationService from 'primevue/confirmationservice';
+import Tag from 'primevue/tag';
 
 
 // PrimeVue styles
@@ -34,6 +37,9 @@ import 'primeicons/primeicons.css';
 // Custom styles
 import '@/assets/theme.css';
 import '@/assets/main.css';
+
+
+import 'primeflex/primeflex.css';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -49,6 +55,7 @@ app.use(PrimeVue, {
     }
 });
 app.use(ToastService);
+app.use(ConfirmationService);
 
 // Register PrimeVue components globally
 app.component('Button', Button);
@@ -70,5 +77,7 @@ app.component('Select', Select);
 app.component('DatePicker', DatePicker);
 app.directive('tooltip', Tooltip);
 app.component('ToggleSwitch', ToggleSwitch);
+app.component('ConfirmDialog', ConfirmDialog);
+app.component('Tag', Tag);
 
 app.mount('#app');
