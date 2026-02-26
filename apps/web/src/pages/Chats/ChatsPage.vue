@@ -1,5 +1,4 @@
 <template>
-  <AppLayout>
     <div class="chat-shell">
 
       <!-- ── Sidebar ───────────────────────────────────────── -->
@@ -156,51 +155,81 @@
           <!-- Messages -->
           <div class="messages-area" ref="messagesAreaRef">
             <div
-              v-for="msg in chatStore.activeConversation?.messages"
-              :key="msg.id"
+              v-for="group in groupedMessages"
+              :key="group.id"
               class="message-row"
-              :class="msg.role.toLowerCase()"
+              :class="{ user: group.isUser, assistant: !group.isUser }"
             >
               <!-- Avatar -->
-              <div class="msg-avatar" v-if="msg.role !== 'USER'">
+              <div class="msg-avatar" v-if="!group.isUser">
                 <div class="agent-avatar">
                   <i class="pi pi-bolt" />
                 </div>
               </div>
 
-              <!-- Bubble -->
-              <div class="msg-bubble-wrapper" :class="{ 'user-side': msg.role === 'USER' }">
-                <!-- Tool call / result chips -->
-                <div v-if="msg.type === 'TOOL_CALL'" class="tool-badge tool-call">
-                  <i class="pi pi-cog" />
-                  <span>Tool call</span>
-                  <code class="tool-name">{{ parseToolName(msg.content) }}</code>
-                </div>
-                <div v-else-if="msg.type === 'TOOL_RESULT'" class="tool-badge tool-result">
-                  <i class="pi pi-check-circle" />
-                  <span>Tool result</span>
-                </div>
-
-                <div
-                  class="msg-bubble"
-                  :class="[msg.role.toLowerCase(), msg.type.toLowerCase().replace('_', '-')]"
-                >
-                  <!-- Markdown / plain text -->
-                  <div v-if="msg.format === 'MARKDOWN'" class="msg-markdown" v-html="renderMarkdown(msg.content)" />
-                  <div v-else-if="msg.format === 'JSON'" class="msg-json">
-                    <pre>{{ formatJson(msg.content) }}</pre>
+              <!-- Bubble Wrapper -->
+              <div class="msg-bubble-wrapper" :class="{ 'user-side': group.isUser }">
+                
+                <!-- Thoughts Process (Tools & Internal) -->
+                <div v-if="!group.isUser && group.thoughts.length > 0" class="agent-thoughts">
+                  <div class="thoughts-toggle" @click="toggleThoughts(group.id)">
+                    <i class="pi" :class="expandedThoughts.has(group.id) ? 'pi-chevron-down' : 'pi-chevron-right'" />
+                    <span class="thoughts-summary">
+                      <i class="pi pi-cog" />
+                      Analyzed {{ group.thoughts.filter(m => m.type === 'TOOL_CALL').length }} tool steps
+                    </span>
                   </div>
-                  <div v-else class="msg-text">{{ msg.content }}</div>
+                  
+                  <div class="thoughts-container" v-show="expandedThoughts.has(group.id)">
+                    <div v-for="thought in group.thoughts" :key="thought.id" class="thought-item">
+                      <div v-if="thought.type === 'TOOL_CALL'" class="tool-badge tool-call">
+                        <i class="pi pi-cog" />
+                        <span>Tool call</span>
+                        <code class="tool-name">{{ parseToolName(thought.content) }}</code>
+                      </div>
+                      <div v-else-if="thought.type === 'TOOL_RESULT'" class="tool-badge tool-result">
+                        <i class="pi pi-check-circle" />
+                        <span>Tool result</span>
+                      </div>
+
+                      <div
+                        class="msg-bubble thought-bubble"
+                        :class="[thought.role.toLowerCase(), thought.type.toLowerCase().replace('_', '-')]"
+                      >
+                        <div v-if="thought.format === 'MARKDOWN'" class="msg-markdown" v-html="renderMarkdown(thought.content)" />
+                        <div v-else-if="thought.format === 'JSON'" class="msg-json">
+                          <pre>{{ formatJson(thought.content) }}</pre>
+                        </div>
+                        <div v-else class="msg-text">{{ thought.content }}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="msg-meta">
-                  <span class="msg-time">{{ formatTime(msg.createdAt) }}</span>
-                  <span class="msg-role-badge">{{ msg.role }}</span>
-                </div>
+                <!-- Main Chat Message -->
+                <template v-if="group.mainMessage">
+                  <div
+                    class="msg-bubble"
+                    :class="group.mainMessage.role.toLowerCase()"
+                  >
+                    <div v-if="group.mainMessage.format === 'MARKDOWN'" class="msg-markdown" v-html="renderMarkdown(group.mainMessage.content)" />
+                    <div v-else-if="group.mainMessage.format === 'JSON'" class="msg-json">
+                      <pre>{{ formatJson(group.mainMessage.content) }}</pre>
+                    </div>
+                    <div v-else class="msg-text">{{ group.mainMessage.content }}</div>
+                  </div>
+
+                  <div class="msg-meta">
+                    <span class="msg-time">{{ formatTime(group.mainMessage.createdAt) }}</span>
+                    <span class="msg-role-badge" v-if="group.mainMessage.role === 'USER'">USER</span>
+                    <span class="msg-role-badge" v-else>ARDI</span>
+                  </div>
+                </template>
+
               </div>
 
               <!-- User avatar -->
-              <div class="msg-avatar" v-if="msg.role === 'USER'">
+              <div class="msg-avatar" v-if="group.isUser">
                 <Avatar icon="pi pi-user" size="small" class="user-chat-avatar" />
               </div>
             </div>
@@ -249,15 +278,13 @@
     </div>
 
     <Toast />
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue';
+import { ref, watch, nextTick, onMounted, computed } from 'vue';
 import { useChatStore } from '@/stores/chat.store';
 import { useAuthStore } from '@/stores/auth.store';
-import type { Conversation } from '@/pages/Chats/chat.types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import type { Conversation, Message } from '@/pages/Chats/chat.types';
 import { useToast } from 'primevue/usetoast';
 
 
@@ -270,6 +297,65 @@ const sidebarCollapsed = ref(false);
 const inputText = ref('');
 const messagesAreaRef = ref<HTMLElement | null>(null);
 const scrollAnchorRef = ref<HTMLElement | null>(null);
+
+const expandedThoughts = ref(new Set<string>());
+
+const toggleThoughts = (id: string) => {
+  const newSet = new Set(expandedThoughts.value);
+  if (newSet.has(id)) {
+    newSet.delete(id);
+  } else {
+    newSet.add(id);
+  }
+  expandedThoughts.value = newSet;
+};
+
+const groupedMessages = computed(() => {
+  const messages = chatStore.activeConversation?.messages || [];
+  const groups: Array<{
+    id: string;
+    isUser: boolean;
+    mainMessage: Message | null;
+    thoughts: Message[];
+  }> = [];
+
+  let currentThoughts: Message[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'USER') {
+      groups.push({
+        id: msg.id,
+        isUser: true,
+        mainMessage: msg,
+        thoughts: []
+      });
+    } else {
+      if (msg.type === 'CHAT') {
+        groups.push({
+          id: msg.id,
+          isUser: false,
+          mainMessage: msg,
+          thoughts: [...currentThoughts]
+        });
+        currentThoughts = [];
+      } else {
+        currentThoughts.push(msg);
+      }
+    }
+  }
+
+  // Leftover thoughts (e.g. still thinking)
+  if (currentThoughts.length > 0) {
+    groups.push({
+      id: `thinking-${currentThoughts[0].id}`,
+      isUser: false,
+      mainMessage: null,
+      thoughts: currentThoughts
+    });
+  }
+
+  return groups;
+});
 
 // Auto-select first conversation on mount
 onMounted(async () => {
@@ -392,7 +478,7 @@ const updateConversationTitle = () => {
 /* ── Layout ─────────────────────────────────────────────────── */
 .chat-shell {
   display: flex;
-  height: 88vh;
+  height: 100vh;
   overflow: hidden;
   background: var(--p-surface-50, #f8fafc);
   font-family: 'Inter', sans-serif;
@@ -850,6 +936,72 @@ const updateConversationTitle = () => {
 
 .msg-bubble.tool-call, .msg-bubble.tool-result {
   background: var(--p-surface-100, #f1f5f9);
+}
+
+/* Agent Thoughts Display */
+.agent-thoughts {
+  display: flex;
+  flex-direction: column;
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.thoughts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  background: var(--p-surface-100);
+  font-size: 0.8rem;
+  color: var(--p-surface-600);
+  transition: background 0.15s;
+}
+
+.thoughts-toggle:hover {
+  background: var(--p-surface-200);
+}
+
+.thoughts-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.thoughts-container {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid var(--p-surface-200);
+}
+
+.thought-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.thought-bubble {
+  font-size: 0.8rem !important;
+  padding: 0.5rem 0.75rem !important;
+  background: var(--p-surface-100) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.thought-bubble.tool-call {
+  border-left: 2px solid #f97316 !important;
+  border-radius: 4px 12px 12px 4px !important;
+}
+
+.thought-bubble.tool-result {
+  border-left: 2px solid #16a34a !important;
+  border-radius: 4px 12px 12px 4px !important;
 }
 
 /* Metadata under bubble */
