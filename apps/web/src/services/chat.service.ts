@@ -1,5 +1,6 @@
 import apiClient from './api';
 import { Conversation, Message } from '@/pages/Chats/chat.types';
+import { useAuthStore } from '@/stores/auth.store';
 
 // ─── Response envelope shapes (match whatever your backend returns) ─────────
 
@@ -66,19 +67,57 @@ export const chatService = {
   },
 
   /**
-   * Modify to Streaming in the future:
-   *   The backend returns a stream (SSE or chunked transfer). The frontend
-   *   appends chunks to the assistant message as they arrive.
-   *   → You'll need to switch to `fetch` with ReadableStream instead of Axios.
+   * Streaming implementation using fetch and ReadableStream
    */
-  async sendMessage(
+  async sendMessageStream(
     conversationId: string,
-    payload: SendMessagePayload
-  ): Promise<{ userMessage: Message; assistantMessage: Message }> {
-    const response = await apiClient.post<ApiResponse<{ userMessage: Message; assistantMessage: Message }>>(`/conversations/${conversationId}/userMessages`, payload);
-    return {
-      userMessage: response.data.data.userMessage,
-      assistantMessage: response.data.data.assistantMessage
+    payload: any,
+    onChunk: (chunk: any) => void
+  ): Promise<void> {
+    const authStore = useAuthStore();
+    const token = authStore.accessToken;
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+
+    const response = await fetch(`${baseURL}/conversations/${conversationId}/userMessages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to send message. Server responded with ${response.status}`);
+    }
+    if (!response.body) throw new Error("No readable stream in response");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // keep the last partial line in buffer
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6).trim();
+          if (dataStr === '[DONE]') return;
+          if (!dataStr) continue;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            onChunk(parsed);
+          } catch (e) {
+            console.error('SSE JSON parse error:', e, dataStr);
+          }
+        }
+      }
     }
   },
 };

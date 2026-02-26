@@ -72,11 +72,28 @@ export class ConversationsController {
       const { id } = req.params;
       const userId = req.user!.userId;
       const input = req.body as CreateMessageInput;
-      
-      const result = await this.service.sendMessage(id, userId, input);
-      res.json({ success: true, data: result });
+
+      // Ensure we catch early errors before setting headers
+      const stream = this.service.sendMessageStream(id, userId, input);
+
+      // SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      for await (const chunk of stream) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      }
+
+      res.write(`data: [DONE]\n\n`);
+      res.end();
     } catch (err) {
-      next(err);
+      if (!res.headersSent) {
+        next(err);
+      } else {
+        res.end();
+      }
     }
   };
 }

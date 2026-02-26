@@ -71,69 +71,98 @@ export class ConversationsService {
   }
 
   // ── Send message ──────────────────────────────────────────────────────────
-
-  /**
-   * TODO: This is the most important method to implement.
-   *
-   * STEP-BY-STEP GUIDE
-   * 3. Invoke the AI agent.
-   *    You'll need an AgentRunner or similar class. It receives the full
-   *    conversation history and returns the assistant reply. Example:
-   *    const agentResult = await this.agentRunner.run(conversationId, userId);
-   *
-   * 4. Persist the assistant's message returned by the agent.
-   *    const assistantMsg = await prisma.message.create({ data: { ... } });
-   *
-   * 5. Optionally update the conversation title from the first user message:
-   *    if (isFirstMessage) {
-   *      await this.repo.update(conversationId, { title: input.content.slice(0, 60) });
-   *    }
-   *
-   * 6. Return { userMessage, assistantMessage } — the frontend appends both.
-   *
-   * For now this method throws NotImplementedError so the frontend knows
-   * to keep using the mock. Remove this once steps 2-4 are done.
-   */
-  async sendMessage(
+  async *sendMessageStream(
     conversationId: string,
     userId: string,
     input: CreateMessageInput
-  ): Promise<SendMessageResult> {
+  ): AsyncGenerator<any, void, unknown> {
     const conv = await this.repo.findById(conversationId);
     if (!conv) throw new NotFoundError('Conversation not found');
     if (conv.userId !== userId) throw new ForbiddenError();
 
+    const sequence = input.sequence;
+
+    // 1. Persist the user message
     const userMessage = await prisma.message.create({
       data: {
         conversationId,
-        role: input.role,
+        role: input.role || 'USER',
         content: input.content,
-        sequence: input.sequence,
-        type: input.type,
-        format: input.format,
+        sequence: sequence,
+        type: input.type || 'CHAT',
+        format: input.format || 'TEXT',
         metadata: input.metadata || {},
       }
-    })
+    });
 
-    // Invoke the AI agent.
+    yield { type: 'user_message', message: this.toMessageResponse(userMessage) };
 
-    //  Persist the assistant's message returned by the agent.
-    const assistantMessage = await prisma.message.create({
-      data: {
-        conversationId,
-        role: 'ASSISTANT',
-        content: "Test assistant reply",
-        sequence: input.sequence + 1,
-        type: input.type,
-        format: input.format,
-        metadata: input.metadata || {},
-      }
-    })
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-    return {
-      userMessage: this.toMessageResponse(userMessage),
-      assistantMessage: this.toMessageResponse(assistantMessage)
+    // 2. Mock Tool Call (Thinking)
+    await delay(500);
+    const toolCallId = "msg-" + Date.now();
+    const toolCallMsg = {
+      id: toolCallId,
+      conversationId,
+      role: 'ASSISTANT',
+      type: 'TOOL_CALL',
+      content: JSON.stringify({ tool: "generate_report", args: { month: "January", year: 2026, scope: "all_clients" } }),
+      format: 'JSON',
+      sequence: sequence + 1,
+      createdAt: new Date().toISOString()
     };
+    yield { type: 'agent_message', message: toolCallMsg };
+
+    // 3. Mock Tool Result
+    await delay(1200);
+    const toolResultId = "msg-" + (Date.now() + 1);
+    const toolResultMsg = {
+      id: toolResultId,
+      conversationId,
+      role: 'TOOL',
+      type: 'TOOL_RESULT',
+      content: JSON.stringify({ status: "success", reportUrl: "/reports/jan-2026.pdf", clientsProcessed: 47 }),
+      format: 'JSON',
+      sequence: sequence + 2,
+      createdAt: new Date().toISOString()
+    };
+    yield { type: 'agent_message', message: toolResultMsg };
+
+    // 4. Mock Streaming Chat Response
+    await delay(500);
+    const chatId = "msg-" + (Date.now() + 2);
+    const chatMsgBase = {
+      id: chatId,
+      conversationId,
+      role: 'ASSISTANT',
+      type: 'CHAT',
+      format: 'MARKDOWN',
+      sequence: sequence + 3,
+      createdAt: new Date().toISOString()
+    };
+
+    yield { type: 'agent_message_start', message: { ...chatMsgBase, content: "" } };
+
+    const textToStream = "I've successfully generated the report for January 2026 across all clients.\n\nA total of **47 clients** were processed, and the PDF is ready for download. Would you like me to extract any specific insights from this report directly into our chat?";
+    // Split by words to simulate token streaming
+    const tokens = textToStream.match(/(\s+|\S+)/g) || [];
+
+    let accumulatedContent = "";
+    for (const token of tokens) {
+      await delay(40);
+      accumulatedContent += token;
+      yield { type: 'agent_message_chunk', messageId: chatId, delta: token };
+    }
+
+    // 5. Persist the mock agent messages
+    await prisma.message.createMany({
+      data: [
+        { id: toolCallId, conversationId, role: 'ASSISTANT', type: 'TOOL_CALL', format: 'JSON', content: toolCallMsg.content, sequence: toolCallMsg.sequence },
+        { id: toolResultId, conversationId, role: 'TOOL', type: 'TOOL_RESULT', format: 'JSON', content: toolResultMsg.content, sequence: toolResultMsg.sequence },
+        { id: chatId, conversationId, role: 'ASSISTANT', type: 'CHAT', format: 'MARKDOWN', content: accumulatedContent, sequence: chatMsgBase.sequence }
+      ]
+    });
   }
 
   // ── Private mappers ───────────────────────────────────────────────────────

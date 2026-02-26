@@ -133,13 +133,11 @@ export const useChatStore = defineStore('chat', () => {
 
   async function sendMessage(content: string) {
     if (!activeConversationId.value || !content.trim()) return;
-
     if (!activeConversation.value) return;
 
     const nextSeq = (activeConversation.value.messages?.at(-1)?.sequence ?? 0) + 1;
 
-    // Append user message
-    const userMsg: UserMessage = {
+    const userMsgPayload: any = {
       conversationId: activeConversation.value.id,
       sequence: nextSeq,
       role: 'USER',
@@ -149,11 +147,35 @@ export const useChatStore = defineStore('chat', () => {
     };
 
     try {
-      const { userMessage, assistantMessage } = await chatService.sendMessage(activeConversation.value.id, userMsg);
-      activeConversation.value?.messages?.push(userMessage, assistantMessage)
+      isTyping.value = true;
+      let streamedAssistantMsg: Message | null = null;
+
+      await chatService.sendMessageStream(
+        activeConversation.value.id,
+        userMsgPayload,
+        (chunk) => {
+          if (!activeConversation.value) return;
+          if (!activeConversation.value.messages) {
+            activeConversation.value.messages = [];
+          }
+
+          if (chunk.type === 'user_message' || chunk.type === 'agent_message') {
+            activeConversation.value.messages.push(chunk.message);
+          } else if (chunk.type === 'agent_message_start') {
+            streamedAssistantMsg = chunk.message;
+            activeConversation.value.messages.push(streamedAssistantMsg!);
+          } else if (chunk.type === 'agent_message_chunk') {
+            if (streamedAssistantMsg && streamedAssistantMsg.id === chunk.messageId) {
+              streamedAssistantMsg.content += chunk.delta;
+            }
+          }
+        }
+      );
     } catch (err: any) {
-      error.value = err.response?.data?.error?.message || 'Failed to send message';
+      error.value = err.message || 'Failed to send message';
       throw err;
+    } finally {
+      isTyping.value = false;
     }
   }
 
