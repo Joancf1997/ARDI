@@ -16,7 +16,17 @@ export interface Conversation {
   userId: string;
   createdAt: string;
   updatedAt: string;
-  messages: Message[];
+  messages?: Message[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface UserMessage {
+  conversationId: string;
+  sequence: number;
+  role: MessageRole;
+  type: MessageType;
+  content: string;
+  format: ContentFormat;
   metadata?: Record<string, unknown>;
 }
 

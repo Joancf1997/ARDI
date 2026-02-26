@@ -54,6 +54,16 @@
               <span class="conv-title">{{ conv.title ?? 'New conversation' }}</span>
             </div>
             <Button
+              icon="pi pi-pencil"
+              variant="text"
+              rounded
+              size="small"
+              severity="info"
+              class="conv-edit-btn"
+              @click.stop="editConversationName(conv)"
+              v-tooltip.right="'Edit Name'"
+            />
+            <Button
               icon="pi pi-trash"
               variant="text"
               rounded
@@ -81,6 +91,27 @@
           </div>
         </div>
       </aside>
+
+      <!-- ── Edit conversation title ─────────────────────────────────── -->
+      <Dialog
+        v-model:visible="dialogVisible"
+        header="Edit Conversation Title"
+        modal
+        :style="{ width: '480px' }"
+      >
+        <div v-if="chatStore.activeConversation">
+          <InputText 
+            v-model="chatStore.activeConversation.title" 
+            class="w-full mb-4" 
+            placeholder="Conversation Title"
+          />
+          <Button 
+            label="Update" 
+            class="w-full"
+            @click="updateConversationTitle()" 
+          />
+        </div>
+      </Dialog>
 
       <!-- ── Main chat area ─────────────────────────────────── -->
       <main class="chat-main">
@@ -113,11 +144,11 @@
           <header class="chat-header">
             <div class="chat-header-title">
               <i class="pi pi-comments" />
-              <span>{{ chatStore.activeConversation.title ?? 'New conversation' }}</span>
+              <span>{{ chatStore.activeConversation?.title ?? 'New conversation' }}</span>
             </div>
             <div class="chat-header-meta">
               <span class="msg-count">
-                {{ chatStore.activeConversation.messages.length }} messages
+                {{ chatStore.activeConversation?.messages?.length }} messages
               </span>
             </div>
           </header>
@@ -125,7 +156,7 @@
           <!-- Messages -->
           <div class="messages-area" ref="messagesAreaRef">
             <div
-              v-for="msg in chatStore.activeConversation.messages"
+              v-for="msg in chatStore.activeConversation?.messages"
               :key="msg.id"
               class="message-row"
               :class="msg.role.toLowerCase()"
@@ -216,36 +247,41 @@
         </template>
       </main>
     </div>
+
+    <Toast />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { useChatStore } from '@/stores/chat.store';
 import { useAuthStore } from '@/stores/auth.store';
+import type { Conversation } from '@/pages/Chats/chat.types';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useToast } from 'primevue/usetoast';
 
 
 const chatStore = useChatStore();
 const authStore = useAuthStore();
-const router = useRouter();
+const toast = useToast();
 
+const dialogVisible = ref(false);
 const sidebarCollapsed = ref(false);
 const inputText = ref('');
 const messagesAreaRef = ref<HTMLElement | null>(null);
 const scrollAnchorRef = ref<HTMLElement | null>(null);
 
 // Auto-select first conversation on mount
-onMounted(() => {
+onMounted(async () => {
+  await chatStore.fetchConversations();
   if (!chatStore.activeConversationId && chatStore.sortedConversations.length > 0) {
-    chatStore.selectConversation(chatStore.sortedConversations[0].id);
-  }
+    await chatStore.selectConversation(chatStore.sortedConversations[0].id);
+  } 
 });
 
 // Scroll to bottom when messages change or typing state changes
 watch(
-  [() => chatStore.activeConversation?.messages.length, () => chatStore.isTyping],
+  [() => chatStore.activeConversation?.messages?.length, () => chatStore.isTyping],
   async () => {
     await nextTick();
     scrollAnchorRef.value?.scrollIntoView({ behavior: 'smooth' });
@@ -267,11 +303,16 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   if (!text || chatStore.isTyping) return;
   inputText.value = '';
-  await chatStore.sendMessage(text);
+
+  try {
+    await chatStore.sendMessage(text);
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: chatStore.error, life: 3000 });
+  }
 };
 
 const startWithSuggestion = async (text: string) => {
-  chatStore.createConversation();
+  chatStore.createConversation(text);
   await nextTick();
   inputText.value = text;
   await handleSend();
@@ -333,6 +374,17 @@ const renderMarkdown = (text: string): string => {
   html = html.replace(/(<tr>.*?<\/tr>(<br\/>)?)+/g, (match) => `<table class="md-table">${match.replace(/<br\/>/g, '')}</table>`);
 
   return html;
+};
+
+const editConversationName = (conversation: Conversation) => {
+  chatStore.activeConversationId = conversation.id;
+  dialogVisible.value = true;
+};
+
+const updateConversationTitle = () => {
+  if (!chatStore.activeConversation?.id || !chatStore.activeConversation?.title) return;
+  chatStore.updateConversationTitle(chatStore.activeConversation.id, chatStore.activeConversation.title);
+  dialogVisible.value = false;
 };
 </script>
 
@@ -485,7 +537,17 @@ const renderMarkdown = (text: string): string => {
   flex-shrink: 0;
 }
 
+.conv-edit-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
 .conv-item:hover .conv-delete-btn {
+  opacity: 1;
+}
+
+.conv-item:hover .conv-edit-btn {
   opacity: 1;
 }
 

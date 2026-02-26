@@ -1,16 +1,32 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { Conversation, Message } from '@/pages/Chats/chat.types';
-import { MOCK_CONVERSATIONS } from '@/pages/Chats/chat.mock';
+import { ref, computed, watch } from 'vue';
+import { Conversation, Message, UserMessage, MessageRole } from '@/pages/Chats/chat.types';
+import { chatService } from '@/services/chat.service';
 
 export const useChatStore = defineStore('chat', () => {
-  const conversations = ref<Conversation[]>(MOCK_CONVERSATIONS);
+  const conversations = ref<Conversation[]>([]);
   const activeConversationId = ref<string | null>(null);
+  const activeConversation = ref<Conversation | null>(null);
   const isTyping = ref(false);
+  const isLoading = ref(false);
+  const error = ref<string | null>(null);
+  const pagination = ref({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
 
-  const activeConversation = computed(() =>
-    conversations.value.find((c) => c.id === activeConversationId.value) ?? null
-  );
+  watch(activeConversationId, async (newId) => {
+    if (newId) {
+      try {
+        activeConversation.value = await loadConversationMessages(newId);
+      } catch (err) {
+        console.error("Failed to sync messages for conversation:", newId);
+      }
+    }
+  }, { immediate: false });
+
 
   const sortedConversations = computed(() =>
     [...conversations.value].sort(
@@ -18,78 +34,127 @@ export const useChatStore = defineStore('chat', () => {
     )
   );
 
-  function selectConversation(id: string) {
-    activeConversationId.value = id;
+  async function fetchConversations() {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const res = await chatService.getConversations();
+      conversations.value = res.data;
+      pagination.value = res.pagination;
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to fetch conversations';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  function createConversation(): string {
-    const id = `conv-${Date.now()}`;
-    const now = new Date().toISOString();
-    conversations.value.unshift({
-      id,
-      title: 'New conversation',
-      userId: 'user-1',
-      createdAt: now,
-      updatedAt: now,
-      messages: [],
-    });
-    activeConversationId.value = id;
-    return id;
+  async function selectConversation(id: string) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const conv = await chatService.getConversation(id);
+      activeConversationId.value = conv.id;
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to select conversation';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  function deleteConversation(id: string) {
-    conversations.value = conversations.value.filter((c) => c.id !== id);
-    if (activeConversationId.value === id) {
-      activeConversationId.value = conversations.value[0]?.id ?? null;
+  async function createConversation(conTitle?: string) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      let title = conTitle ? conTitle : 'New Conversation';
+      const conv = await chatService.createConversation({ title });
+      conversations.value.unshift(conv);
+      activeConversationId.value = conv.id;
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to create conversation';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function updateConversationTitle(id: string, title: string) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      await chatService.updateConversationTitle(id, title);
+      activeConversationId.value = id;
+      await fetchConversations();
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to update conversation title';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function deleteConversation(id: string) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      await chatService.deleteConversation(id);
+      await fetchConversations();
+      if (activeConversationId.value === id) {
+        activeConversationId.value = conversations.value[0]?.id ?? null;
+      }
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to delete conversation';
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function loadConversationMessages(id: string): Promise<Conversation & { messages: Message[] }> {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await chatService.getConversation(id);
+      return response
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to load conversation messages';
+      throw err;
+    } finally {
+      isLoading.value = false;
     }
   }
 
   async function sendMessage(content: string) {
     if (!activeConversationId.value || !content.trim()) return;
 
-    const conv = conversations.value.find((c) => c.id === activeConversationId.value);
-    if (!conv) return;
+    if (!activeConversation.value) return;
 
-    const now = new Date().toISOString();
-    const nextSeq = (conv.messages.at(-1)?.sequence ?? 0) + 1;
+    const nextSeq = (activeConversation.value.messages?.at(-1)?.sequence ?? 0) + 1;
 
     // Append user message
-    const userMsg: Message = {
-      id: `msg-${Date.now()}`,
-      conversationId: conv.id,
+    const userMsg: UserMessage = {
+      conversationId: activeConversation.value.id,
       sequence: nextSeq,
       role: 'USER',
       type: 'CHAT',
       content,
       format: 'TEXT',
-      createdAt: now,
     };
-    conv.messages.push(userMsg);
-    conv.updatedAt = now;
 
-    // Auto-generate title from the first user message
-    if (conv.messages.filter((m) => m.role === 'USER').length === 1) {
-      conv.title = content.length > 45 ? content.slice(0, 45) + '…' : content;
+    try {
+      const { userMessage, assistantMessage } = await chatService.sendMessage(activeConversation.value.id, userMsg);
+      activeConversation.value?.messages?.push(userMessage, assistantMessage)
+    } catch (err: any) {
+      error.value = err.response?.data?.error?.message || 'Failed to send message';
+      throw err;
     }
-
-    // Simulate assistant typing
-    isTyping.value = true;
-    await new Promise((r) => setTimeout(r, 1400));
-    isTyping.value = false;
-
-    const assistantMsg: Message = {
-      id: `msg-${Date.now() + 1}`,
-      conversationId: conv.id,
-      sequence: nextSeq + 1,
-      role: 'ASSISTANT',
-      type: 'CHAT',
-      content:
-        "I've received your message and I'm processing your request. This is a **mock response** — the real AI agent will be connected in the next phase.\n\nHere's what I would typically do:\n1. Analyze your query\n2. Query the relevant data sources\n3. Apply the appropriate reasoning chain\n4. Return a structured response\n\nStay tuned! 🚀",
-      format: 'MARKDOWN',
-      createdAt: new Date().toISOString(),
-    };
-    conv.messages.push(assistantMsg);
-    conv.updatedAt = assistantMsg.createdAt;
   }
 
   return {
@@ -98,6 +163,9 @@ export const useChatStore = defineStore('chat', () => {
     activeConversation,
     sortedConversations,
     isTyping,
+    error,
+    updateConversationTitle,
+    fetchConversations,
     selectConversation,
     createConversation,
     deleteConversation,

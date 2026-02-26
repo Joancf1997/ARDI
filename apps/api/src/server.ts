@@ -9,6 +9,7 @@ import { errorHandler } from '@/middlewares/error.middleware';
 import authRoutes from '@/modules/auth/auth.routes';
 import { prisma } from '@/shared/prisma';
 import userRoutes from '@/modules/users/users.routes';
+import conversationRoutes from '@/modules/conversations/conversations.routes';
 
 const app: Application = express();
 
@@ -42,6 +43,7 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/conversations', conversationRoutes);
 
 // 404 handler
 app.use('*', (_req, res) => {
